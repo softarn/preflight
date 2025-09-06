@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "preflight"
+version = "0.1.0"
+description = "An AI-powered code reviewer CLI."
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+include = ["src/preflight/system_prompt.txt"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+typer = {extras = ["all"], version = "^0.12.3"}
+rich = "^13.7.1"
+llama-cpp-python = "^0.3.16"
+
+[tool.poetry.scripts]
+preflight = "preflight.main:app"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

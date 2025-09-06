@@ -1,6 +1,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
+*.py[cod]
 *$py.class
 
 # C extensions
@@ -25,6 +26,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+*.egg-info/
+.installed.cfg
+*.egg
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -40,6 +44,10 @@ pip-delete-this-directory.txt
 htmlcov/
 .tox/
 .nox/
+*.log
+
+# Unit test / coverage reports
+.tox/
 .coverage
 .coverage.*
 .cache
@@ -50,6 +58,8 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+.hypothesis/
+.pytest_cache/
 
 # Translations
 *.mo
@@ -137,6 +147,8 @@ celerybeat.pid
 # Environments
 .env
 .envrc
+# Environments
+.env
 .venv
 env/
 venv/
@@ -205,3 +217,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+# IDEs
+.idea/
+.vscode/
+
+# Models
+models/
