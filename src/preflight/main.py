@@ -1,28 +1,29 @@
-from collections.abc import Iterator
 import json
-import re
-import sys
 import time
 from typing import Iterator
 
+import rich.status
 import typer
-from rich.console import Console, Group
-from rich.panel import Panel
-
-from rich.style import Style
-from rich.text import Text
+from rich.console import Console
 
 from preflight.ai_reviewer import get_model, analyze_diff, ReviewIssue
 from preflight.git_utils import get_git_diff
-from preflight.issue_display import IssueDisplay # New import
-
-
+from preflight.issue_display import IssueDisplay  # New import
 
 app = typer.Typer()
 console = Console()
 issue_display = IssueDisplay(console) # New: Instantiate IssueDisplay
 
 
+def get_color(severity):
+    """Returns a color string based on severity level."""
+    return {
+        "CRITICAL": "bold red",
+        "HIGH": "red",
+        "MEDIUM": "yellow",
+        "LOW": "cyan",
+        "INFO": "blue"
+    }.get(severity.upper(), "default")
 
 
 @app.command()
@@ -49,16 +50,48 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
         analysis_start_time = time.monotonic()
         result = analyze_diff(diff_content, model)
 
+        spinner = rich.status.Status("Analyzing code...", spinner="dots")
+        spinner.start()
+
         full_response = ""
         # The analyze_diff function returns an iterator, so we need to consume it
         # to get the full response.
         if isinstance(result, Iterator):
+            partial_response = ""
+            open_brackets = 0
             for output in result:
+                output_text = output['choices'][0]['text']
+
+                for output_char in output_text:
+                    partial_response += output_char
+                    # console.print(f"{partial_response}")
+
+                    open_brackets += output_char.count('{')
+                    open_brackets -= output_char.count('}')
+
+                    if open_brackets == 0 and len(partial_response) > 5:
+                        start_index = partial_response.find('{')
+                        end_index = partial_response.rfind('}')
+                        try:
+                            # {'file': 'src/main/java/com/example/app/Greeter.java', 'line': {'start': 26, 'end': 26}, 'severity': 'MEDIUM', 'description': "The 'generateGreeting' method uses a new Random instance on each call, which is inefficient and unnecessary. This can
+                            # lead to poor performance if called frequently.", 'suggestion': 'Consider reusing a single Random instance as a class-level field or using a thread-safe alternative like ThreadLocalRandom.', 'codeSnippet': 'public String generateGreeting(String
+                            # name) {\n        if (new Random().nextBoolean()) {\n            return "Hello, " + name;\n        } else {\n            return "Howdy ho, " + name;\n        }\n    }'}
+                            issue_data = json.loads(partial_response[start_index : end_index + 1])
+                            color = get_color(issue_data['severity'])
+                            console.print(f":warning: Issue found in {issue_data['file']}", style=color)
+                            partial_response = partial_response[end_index + 1 :]
+                        except json.JSONDecodeError:
+                            pass
+
+
+                # console.print(f"{output['choices'][0]['text']}")
                 full_response += output['choices'][0]['text']
         else:
             # This case should ideally not be hit if analyze_diff always streams
             full_response = result['choices'][0]['text']
         analysis_duration = time.monotonic() - analysis_start_time
+
+        spinner.stop()
 
         # 4. Parse the final response
         console.print("Parsing final response...", style="yellow")
