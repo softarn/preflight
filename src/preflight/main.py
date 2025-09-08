@@ -7,45 +7,21 @@ from typing import Iterator
 
 import typer
 from rich.console import Console, Group
-from rich.live import Live
 from rich.panel import Panel
+
 from rich.style import Style
 from rich.text import Text
 
 from preflight.ai_reviewer import get_model, analyze_diff, ReviewIssue
 from preflight.git_utils import get_git_diff
 
-LINES_TO_SHOW = 20
+
 
 app = typer.Typer()
 console = Console()
 
 
-def stream_and_display(stream: Iterator[dict]) -> str:
-    """Displays the streaming output in a live-updating panel and returns the full response."""
-    full_response = ""
-    display_buffer = ""
-    live_panel = Panel("", title="[bold yellow]Model Output[/bold yellow]", border_style="blue", height=LINES_TO_SHOW + 2)
 
-    with Live(live_panel, console=console, screen=True, redirect_stderr=False, vertical_overflow="visible") as live:
-        for output in stream:
-            chunk = output['choices'][0]['text']
-            full_response += chunk
-            display_buffer += chunk
-
-            # Get the last lines for display
-            lines = display_buffer.splitlines()
-            lines_to_show = lines[-LINES_TO_SHOW:]
-
-            # Pad with blank lines to fill the panel
-            while len(lines_to_show) < LINES_TO_SHOW:
-                lines_to_show.insert(0, "")
-            
-            display_text = "\n".join(lines_to_show)
-            live_panel.renderable = Text(display_text)
-            live.update(live_panel)
-    
-    return full_response
 
 
 def display_issues_paged(issues: list[ReviewIssue]):
@@ -81,7 +57,7 @@ def display_issues_paged(issues: list[ReviewIssue]):
 
         if issue.codeSnippet:
             renderables.append(Text("\nCode Snippet:", style="bold magenta"))
-            renderables.append(Panel(Text(issue.codeSnippet), style="green", border_style="dim"))
+            renderables.append(Text(issue.codeSnippet, style="green"))
 
         content_group = Group(*renderables)
 
@@ -123,15 +99,17 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
         load_duration = time.monotonic() - load_start_time
 
         # 3. Run Analysis and Stream Output
-        console.print(":thought_balloon: Model loaded. Analyzing diff for issues...", style="yellow")
         analysis_start_time = time.monotonic()
         result = analyze_diff(diff_content, model)
 
         full_response = ""
+        # The analyze_diff function returns an iterator, so we need to consume it
+        # to get the full response.
         if isinstance(result, Iterator):
-            full_response = stream_and_display(result)
+            for output in result:
+                full_response += output['choices'][0]['text']
         else:
-            # Handle the non-streaming case, though our code always streams
+            # This case should ideally not be hit if analyze_diff always streams
             full_response = result['choices'][0]['text']
         analysis_duration = time.monotonic() - analysis_start_time
 
@@ -172,16 +150,10 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
         raise typer.Exit(code=1)
     finally:
         total_duration = time.monotonic() - total_start_time
-        console.print(
-            Panel(
-                f"[bold]Performance Metrics[/bold]\n"
-                f"- Model Loading: [cyan]{load_duration:.2f}s[/cyan]\n"
-                f"- AI Analysis:   [cyan]{analysis_duration:.2f}s[/cyan]\n"
-                f"- Total Run:     [cyan]{total_duration:.2f}s[/cyan]",
-                title="[dim]Timings[/dim]",
-                border_style="dim"
-            )
-        )
+        console.print(f"[bold]Performance Metrics[/bold]")
+        console.print(f"- Model Loading: [cyan]{load_duration:.2f}s[/cyan]")
+        console.print(f"- AI Analysis:   [cyan]{analysis_duration:.2f}s[/cyan]")
+        console.print(f"- Total Run:     [cyan]{total_duration:.2f}s[/cyan]")
 
 if __name__ == "__main__":
     app()
