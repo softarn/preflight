@@ -1,16 +1,10 @@
-from collections.abc import Iterator
-import json
-import re
-import sys
-import time
-from typing import Iterator
-
 from rich.console import Console, Group
 from rich.panel import Panel
-from rich.style import Style
 from rich.text import Text
 
-from preflight.ai_reviewer import ReviewIssue, LineRange # Import necessary classes
+from preflight.ai_reviewer import ReviewIssue  # Import necessary classes
+from preflight.display_utils import get_color
+
 
 class IssueDisplay:
     def __init__(self, console: Console):
@@ -37,13 +31,7 @@ class IssueDisplay:
         # --- Build Rich Content ---
         title = f"Preflight Review Issue {self.current_issue_index + 1} of {len(self.issues)}"
         
-        severity_style = {
-            "CRITICAL": "bold red",
-            "HIGH": "red",
-            "MEDIUM": "yellow",
-            "LOW": "cyan",
-            "INFO": "blue"
-        }.get(issue.severity.upper(), "default")
+        severity_style = get_color(issue.severity)
 
         main_text = Text()
         main_text.append("Severity: ", style="bold magenta")

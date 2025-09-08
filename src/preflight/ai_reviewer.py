@@ -98,7 +98,7 @@ def get_model() -> Llama:
     if not MODEL_PATH.exists():
         _download_model()
 
-    return Llama(model_path=str(MODEL_PATH), n_ctx=32768, n_gpu_layers=-1, n_batch=2048)
+    return Llama(model_path=str(MODEL_PATH), n_ctx=32768, n_gpu_layers=-1, n_batch=2048, verbose=False)
 
 # --- AI Analysis ---
 def analyze_diff(diff_content: str, model: Llama) -> Union[CreateCompletionResponse, Iterator[CreateCompletionResponse]]:

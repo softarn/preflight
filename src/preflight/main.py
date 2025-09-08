@@ -1,5 +1,4 @@
 import json
-import time
 from typing import Iterator
 
 import rich.status
@@ -7,6 +6,7 @@ import typer
 from rich.console import Console
 
 from preflight.ai_reviewer import get_model, analyze_diff, ReviewIssue
+from preflight.display_utils import get_color
 from preflight.git_utils import get_git_diff
 from preflight.issue_display import IssueDisplay  # New import
 
@@ -15,23 +15,9 @@ console = Console()
 issue_display = IssueDisplay(console) # New: Instantiate IssueDisplay
 
 
-def get_color(severity):
-    """Returns a color string based on severity level."""
-    return {
-        "CRITICAL": "bold red",
-        "HIGH": "red",
-        "MEDIUM": "yellow",
-        "LOW": "cyan",
-        "INFO": "blue"
-    }.get(severity.upper(), "default")
-
-
 @app.command()
 def review(branch: str = typer.Argument(..., help="The git branch to analyze against master.")):
     """Analyzes the files in a git branch for potential issues using a local AI model."""
-    total_start_time = time.monotonic()
-    load_duration = 0
-    analysis_duration = 0
     try:
         # 1. Get Git Diff
         console.print(f":mag: Analyzing diff for branch '{branch}' against master...", style="yellow")
@@ -42,13 +28,12 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
 
         # 2. Get AI Model
         console.print(":robot: Loading AI model... (this may take a moment)", style="yellow")
-        load_start_time = time.monotonic()
         model = get_model()
-        load_duration = time.monotonic() - load_start_time
 
         # 3. Run Analysis and Stream Output
-        analysis_start_time = time.monotonic()
         result = analyze_diff(diff_content, model)
+
+        console.clear()
 
         spinner = rich.status.Status("Analyzing code...", spinner="dots")
         spinner.start()
@@ -64,7 +49,6 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
 
                 for output_char in output_text:
                     partial_response += output_char
-                    # console.print(f"{partial_response}")
 
                     open_brackets += output_char.count('{')
                     open_brackets -= output_char.count('}')
@@ -78,18 +62,18 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
                             # name) {\n        if (new Random().nextBoolean()) {\n            return "Hello, " + name;\n        } else {\n            return "Howdy ho, " + name;\n        }\n    }'}
                             issue_data = json.loads(partial_response[start_index : end_index + 1])
                             color = get_color(issue_data['severity'])
-                            console.print(f":warning: Issue found in {issue_data['file']}", style=color)
+                            spinner.stop()
+                            console.print(f"\r:warning: Issue found in {issue_data['file']}\n", style=color, end="")
+                            spinner.start()
                             partial_response = partial_response[end_index + 1 :]
                         except json.JSONDecodeError:
                             pass
 
 
-                # console.print(f"{output['choices'][0]['text']}")
                 full_response += output['choices'][0]['text']
         else:
             # This case should ideally not be hit if analyze_diff always streams
             full_response = result['choices'][0]['text']
-        analysis_duration = time.monotonic() - analysis_start_time
 
         spinner.stop()
 
@@ -131,12 +115,6 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
         console.print(":x: An unexpected error occurred.", style="bold red")
         console.print_exception(show_locals=True)
         raise typer.Exit(code=1)
-    finally:
-        total_duration = time.monotonic() - total_start_time
-        console.print(f"[bold]Performance Metrics[/bold]")
-        console.print(f"- Model Loading: [cyan]{load_duration:.2f}s[/cyan]")
-        console.print(f"- AI Analysis:   [cyan]{analysis_duration:.2f}s[/cyan]")
-        console.print(f"- Total Run:     [cyan]{total_duration:.2f}s[/cyan]")
 
 if __name__ == "__main__":
     app()
