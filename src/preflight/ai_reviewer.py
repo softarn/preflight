@@ -11,8 +11,25 @@ from llama_cpp import Llama, CreateCompletionResponse
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, DownloadColumn, TransferSpeedColumn
 
 # --- Model and Prompt Configuration ---
-MODEL_REPO = "bartowski/deepseek-ai_DeepSeek-R1-0528-Qwen3-8B-GGUF"
-MODEL_FILE = "deepseek-ai_DeepSeek-R1-0528-Qwen3-8B-Q4_K_M.gguf"
+# MODEL_REPO = "bartowski/deepseek-ai_DeepSeek-R1-0528-Qwen3-8B-GGUF"
+# MODEL_FILE = "deepseek-ai_DeepSeek-R1-0528-Qwen3-8B-Q4_K_M.gguf"
+
+# MODEL_REPO = "unsloth/Qwen3-30B-A3B-Thinking-2507-GGUF"
+# MODEL_FILE = "Qwen3-30B-A3B-Thinking-2507-Q4_K_M.gguf"
+
+# MODEL_REPO = "unsloth/Qwen3-4B-Thinking-2507-GGUF"
+# MODEL_FILE = "Qwen3-4B-Thinking-2507-Q2_K.gguf"
+
+# Fast, small and good it seems
+# MODEL_REPO = "unsloth/Qwen3-4B-Instruct-2507-GGUF"
+# MODEL_FILE = "Qwen3-4B-Instruct-2507-Q3_K_M.gguf"
+
+MODEL_REPO = "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF"
+MODEL_FILE = "Qwen3-30B-A3B-Instruct-2507-Q3_K_M.gguf"
+
+# Did not find as many problems as others
+# MODEL_REPO = "unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF"
+# MODEL_FILE = "Qwen3-Coder-30B-A3B-Instruct-Q3_K_M.gguf"
 MODEL_DOWNLOAD_URL = f"https://huggingface.co/{MODEL_REPO}/resolve/main/{MODEL_FILE}"
 
 MODELS_DIR = Path.home() / ".preflight" / "models"
@@ -94,13 +111,22 @@ def analyze_diff(diff_content: str, model: Llama) -> CreateCompletionResponse | 
 <diff>
 {diff_content}
 </diff>"""
-    prompt = f"<｜begin of sentence｜>{SYSTEM_PROMPT}<｜User｜>{user_prompt}<｜Assistant｜>"
+    prompt = (
+        f"<|im_start|>system\n"
+        f"{SYSTEM_PROMPT}<|im_end|>\n"
+        f"<|im_start|>user\n"
+        f"{user_prompt}<|im_end|>\n"
+        f"<|im_start|>assistant"
+    )
 
     return model(
         prompt,
-        max_tokens=0, # 0 = unlimited generation within context window
+        max_tokens=0,
         temperature=0.7,
-        echo=False,
-        stream=True
+        min_p=0.00,
+        top_k=20,
+        top_p=0.8,
+        repeat_penalty=1.05,
+        stream=True,
     )
 

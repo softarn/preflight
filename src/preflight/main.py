@@ -2,6 +2,7 @@ from collections.abc import Iterator
 import json
 import re
 import sys
+import time
 from typing import Iterator
 
 import typer
@@ -104,6 +105,9 @@ def display_issues_paged(issues: list[ReviewIssue]):
 @app.command()
 def review(branch: str = typer.Argument(..., help="The git branch to analyze against master.")):
     """Analyzes the files in a git branch for potential issues using a local AI model."""
+    total_start_time = time.monotonic()
+    load_duration = 0
+    analysis_duration = 0
     try:
         # 1. Get Git Diff
         console.print(f":mag: Analyzing diff for branch '{branch}' against master...", style="yellow")
@@ -114,10 +118,13 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
 
         # 2. Get AI Model
         console.print(":robot: Loading AI model... (this may take a moment)", style="yellow")
+        load_start_time = time.monotonic()
         model = get_model()
+        load_duration = time.monotonic() - load_start_time
 
         # 3. Run Analysis and Stream Output
         console.print(":thought_balloon: Model loaded. Analyzing diff for issues...", style="yellow")
+        analysis_start_time = time.monotonic()
         result = analyze_diff(diff_content, model)
 
         full_response = ""
@@ -126,27 +133,28 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
         else:
             # Handle the non-streaming case, though our code always streams
             full_response = result['choices'][0]['text']
+        analysis_duration = time.monotonic() - analysis_start_time
 
         # 4. Parse the final response
         console.print("Parsing final response...", style="yellow")
-        # Remove chain-of-thought <think> blocks
-        json_text = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
         
-        # Clean up potential markdown code blocks
-        if json_text.startswith("```json"):
-            json_text = json_text[7:-4].strip()
+        # Find the start and end of the JSON array
+        start_index = full_response.find('[')
+        end_index = full_response.rfind(']')
 
-        if not json_text:
-            console.print("AI returned an empty response after cleaning.", style="yellow")
-            return
-
-        try:
-            issues_data = json.loads(json_text)
-            issues = [ReviewIssue.from_dict(item) for item in issues_data]
-        except json.JSONDecodeError as e:
-            console.print(f":x: Failed to parse JSON from AI response: {e}", style="bold red")
-            console.print(f"--- Raw Response ---\n{json_text}", style="dim")
-            raise typer.Exit(code=1)
+        if start_index != -1 and end_index != -1 and end_index > start_index:
+            json_text = full_response[start_index : end_index + 1]
+            try:
+                issues_data = json.loads(json_text)
+                issues = [ReviewIssue.from_dict(item) for item in issues_data]
+            except json.JSONDecodeError as e:
+                console.print(f":x: Failed to parse JSON from AI response: {e}", style="bold red")
+                console.print(f"--- Extracted Text ---\n{json_text}", style="dim")
+                raise typer.Exit(code=1)
+        else:
+            console.print(":warning: Could not find a JSON array in the model's output.", style="yellow")
+            console.print(f"--- Raw Response ---\n{full_response}", style="dim")
+            issues = []
 
         # 5. Display Results
         if not issues:
@@ -158,9 +166,22 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
     except FileNotFoundError:
         console.print(":x: Critical Error: 'git' command not found. Is Git installed?", style="bold red")
         raise typer.Exit(code=1)
-    except Exception as e:
-        console.print(f":x: An unexpected error occurred: {e}", style="bold red")
+    except Exception:
+        console.print(":x: An unexpected error occurred.", style="bold red")
+        console.print_exception(show_locals=True)
         raise typer.Exit(code=1)
+    finally:
+        total_duration = time.monotonic() - total_start_time
+        console.print(
+            Panel(
+                f"[bold]Performance Metrics[/bold]\n"
+                f"- Model Loading: [cyan]{load_duration:.2f}s[/cyan]\n"
+                f"- AI Analysis:   [cyan]{analysis_duration:.2f}s[/cyan]\n"
+                f"- Total Run:     [cyan]{total_duration:.2f}s[/cyan]",
+                title="[dim]Timings[/dim]",
+                border_style="dim"
+            )
+        )
 
 if __name__ == "__main__":
     app()

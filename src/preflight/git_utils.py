@@ -19,6 +19,7 @@ def get_git_diff(branch_name: str, base_branch: str = "master") -> str:
             text=True,
             check=True
         )
+        print(f"Diff to analyze: {process.stdout}")
         return process.stdout
     except FileNotFoundError:
         print("Error: 'git' command not found. Is Git installed and in your PATH?", file=sys.stderr)
