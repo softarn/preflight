@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "preflight"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 description = "An AI-powered code reviewer CLI."
 authors = ["Marcus Höjvall <softarn@gmail.com>"]
 readme = "README.md"
