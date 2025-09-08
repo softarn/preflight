@@ -14,68 +14,15 @@ from rich.text import Text
 
 from preflight.ai_reviewer import get_model, analyze_diff, ReviewIssue
 from preflight.git_utils import get_git_diff
+from preflight.issue_display import IssueDisplay # New import
 
 
 
 app = typer.Typer()
 console = Console()
+issue_display = IssueDisplay(console) # New: Instantiate IssueDisplay
 
 
-
-
-
-def display_issues_paged(issues: list[ReviewIssue]):
-    """Interactively displays a list of review issues in the console."""
-    current_issue_index = 0
-    
-    while True:
-        console.clear()
-        issue = issues[current_issue_index]
-
-        # --- Build Rich Content ---
-        title = f"Preflight Review Issue {current_issue_index + 1} of {len(issues)}"
-        
-        severity_style = {
-            "CRITICAL": "bold red",
-            "HIGH": "red",
-            "MEDIUM": "yellow",
-            "LOW": "cyan",
-            "INFO": "blue"
-        }.get(issue.severity.upper(), "default")
-
-        main_text = Text()
-        main_text.append("Severity: ", style="bold magenta")
-        main_text.append(issue.severity, style=severity_style)
-        main_text.append(f"\nFile: {issue.file}", style="bold")
-        main_text.append(f"\nLine: {issue.line.start}-{issue.line.end}")
-        main_text.append("\n\nDescription: ", style="bold magenta")
-        main_text.append(issue.description)
-        main_text.append("\n\nSuggestion: ", style="bold magenta")
-        main_text.append(issue.suggestion)
-
-        renderables = [main_text]
-
-        if issue.codeSnippet:
-            renderables.append(Text("\nCode Snippet:", style="bold magenta"))
-            renderables.append(Text(issue.codeSnippet, style="green"))
-
-        content_group = Group(*renderables)
-
-        console.print(Panel(content_group, title=title, border_style="green"))
-        console.print("Press Enter for next, 'p' for previous, 'q' to quit...", style="yellow")
-
-        # --- Handle User Input ---
-        try:
-            user_input = input()
-            if user_input.lower() == 'q':
-                break
-            elif user_input.lower() == 'p':
-                current_issue_index = (current_issue_index - 1) % len(issues)
-            else:
-                current_issue_index = (current_issue_index + 1) % len(issues)
-        except (KeyboardInterrupt, EOFError):
-            break
-    console.print("--- End of Review ---")
 
 
 @app.command()
@@ -124,7 +71,9 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
             json_text = full_response[start_index : end_index + 1]
             try:
                 issues_data = json.loads(json_text)
-                issues = [ReviewIssue.from_dict(item) for item in issues_data]
+                # New: Add issues one by one to IssueDisplay
+                for item in issues_data:
+                    issue_display.add_issue(ReviewIssue.from_dict(item))
             except json.JSONDecodeError as e:
                 console.print(f":x: Failed to parse JSON from AI response: {e}", style="bold red")
                 console.print(f"--- Extracted Text ---\n{json_text}", style="dim")
@@ -132,14 +81,15 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
         else:
             console.print(":warning: Could not find a JSON array in the model's output.", style="yellow")
             console.print(f"--- Raw Response ---\n{full_response}", style="dim")
-            issues = []
+            # If no issues found, ensure issue_display is empty
+            issue_display.issues = []
 
         # 5. Display Results
-        if not issues:
+        if not issue_display.issues: # Check issue_display for issues
             console.print("✨ Analysis complete. No issues found!", style="bold green")
             return
 
-        display_issues_paged(issues)
+        issue_display.display_issues() # New: Use IssueDisplay to display issues
 
     except FileNotFoundError:
         console.print(":x: Critical Error: 'git' command not found. Is Git installed?", style="bold red")
@@ -157,3 +107,4 @@ def review(branch: str = typer.Argument(..., help="The git branch to analyze aga
 
 if __name__ == "__main__":
     app()
+
