@@ -5,9 +5,10 @@ import urllib.request
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
-from typing import List, Iterator
+from typing import List, Iterator, Union
 
-from llama_cpp import Llama, CreateCompletionResponse
+from llama_cpp import Llama
+from llama_cpp.llama_types import CreateCompletionResponse, CreateCompletionResponse
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, DownloadColumn, TransferSpeedColumn
 
 # --- Model and Prompt Configuration ---
@@ -100,7 +101,7 @@ def get_model() -> Llama:
     return Llama(model_path=str(MODEL_PATH), n_ctx=32768, n_gpu_layers=-1, n_batch=2048)
 
 # --- AI Analysis ---
-def analyze_diff(diff_content: str, model: Llama) -> CreateCompletionResponse | Iterator[CreateCompletionResponse]:
+def analyze_diff(diff_content: str, model: Llama) -> Union[CreateCompletionResponse, Iterator[CreateCompletionResponse]]:
     """Analyzes a git diff using the AI model and streams the response.
 
     Returns:
