@@ -7,7 +7,7 @@ from rich.console import Console
 
 from preflight.ai_reviewer import get_model, analyze_diff, ReviewIssue
 from preflight.display_utils import get_color
-from preflight.git_utils import get_git_diff, get_current_branch
+from preflight.git_utils import get_git_diff, get_current_branch, get_current_git_diff
 from preflight.issue_display import IssueDisplay  # New import
 
 app = typer.Typer()
@@ -16,16 +16,26 @@ issue_display = IssueDisplay(console) # New: Instantiate IssueDisplay
 
 
 @app.command()
-def review(branch: str = typer.Argument(None, help="The git branch to analyze. Defaults to the current branch if not provided."),
-           base_branch: str = typer.Option("master", "--base", "-b", help="The base branch to compare against.")):
+def review(branch: str = typer.Argument(None, help="The git branch to analyze. Defaults to the current branch if not provided. Not used if --diff is specified."),
+           base_branch: str = typer.Option("master", "--base", "-b", help="The base branch to compare against. Not used if --diff is specified."),
+           diff: bool = typer.Option(False, "--diff", help="Review the current Git diff (unstaged and staged changes).")):
     """Analyzes the files in a git branch for potential issues using a local AI model."""
     try:
-        if branch is None:
-            branch = get_current_branch()
+        if diff:
+            if branch is not None or base_branch != "master":
+                console.print(":x: Cannot use --diff with branch arguments (--branch or --base).", style="bold red")
+                raise typer.Exit(code=1)
+            console.print(":mag: Analyzing current Git diff...", style="yellow")
+            diff_content = get_current_git_diff()
+        else:
+            if branch is None:
+                branch = get_current_branch()
+                console.print(f":mag: Analyzing diff for current branch '{branch}' against master...", style="yellow")
+            else:
+                console.print(f":mag: Analyzing diff for branch '{branch}' against {base_branch}...", style="yellow")
 
-        console.print(f":mag: Analyzing diff for branch '{branch}' against master...", style="yellow")
+            diff_content = get_git_diff(branch, base_branch)
 
-        diff_content = get_git_diff(branch, base_branch)
         if not diff_content.strip():
             console.print("No differences found. Nothing to review.", style="green")
             return
