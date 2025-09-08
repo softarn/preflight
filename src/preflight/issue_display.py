@@ -1,23 +1,25 @@
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.text import Text
+from dataclasses import dataclass
 
 from preflight.ai_reviewer import ReviewIssue  # Import necessary classes
 from preflight.display_utils import get_color
 
 
+@dataclass
+class DisplayIssue:
+    issue: ReviewIssue
+    watched: bool = False
+
+
 class IssueDisplay:
     def __init__(self, console: Console):
         self.console = console
-        self.issues: list[ReviewIssue] = []
-        self.current_issue_index = 0
+        self.issues: list[DisplayIssue] = []
 
     def add_issue(self, issue: ReviewIssue):
-        self.issues.append(issue)
-        # When a new issue is added, we might want to immediately display it
-        # or update the current view if the user is already in the display mode.
-        # For now, let's just add it. The display logic will be handled by display_issues.
-        self.update_display()
+        self.issues.append(DisplayIssue(issue=issue, watched=False))
 
     def update_display(self):
         """Updates the display with the current issue."""
@@ -26,10 +28,13 @@ class IssueDisplay:
             return
 
         self.console.clear()
-        issue = self.issues[self.current_issue_index]
+        display_issue = self.issues[self.current_issue_index]
+        display_issue.watched = True
+        issue = display_issue.issue
 
-        # --- Build Rich Content ---
-        title = f"Preflight Review Issue {self.current_issue_index + 1} of {len(self.issues)}"
+        unwatched_count = sum(1 for di in self.issues if not di.watched)
+        unwatched_color = "green" if unwatched_count == 0 else "red"
+        title = f"Preflight Review Issue {self.current_issue_index + 1} of {len(self.issues)} ([{unwatched_color}]Unwatched: {unwatched_count}[/{unwatched_color}])"
         
         severity_style = get_color(issue.severity)
 
@@ -60,6 +65,8 @@ class IssueDisplay:
             self.console.print("No issues to display.", style="yellow")
             return
 
+        self.current_issue_index = 0
+
         while True:
             self.update_display()
             # --- Handle User Input ---
@@ -73,5 +80,3 @@ class IssueDisplay:
                     self.current_issue_index = (self.current_issue_index + 1) % len(self.issues)
             except (KeyboardInterrupt, EOFError):
                 break
-        self.console.print("--- End of Review ---")
-
