@@ -1,3 +1,6 @@
+import sys
+import termios
+import tty
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.text import Text
@@ -5,6 +8,17 @@ from dataclasses import dataclass
 
 from preflight.ai_reviewer import ReviewIssue  # Import necessary classes
 from preflight.display_utils import get_color
+
+def getch():
+    """Reads a single character from stdin without echoing or requiring Enter."""
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
 
 
 @dataclass
@@ -57,7 +71,7 @@ class IssueDisplay:
         content_group = Group(*renderables)
 
         self.console.print(Panel(content_group, title=title, border_style="green"))
-        self.console.print("Press Enter for next, 'p' for previous, 'q' to quit...", style="yellow")
+        self.console.print("Press 'j' or down arrow for next, 'k' or up arrow for previous, 'Esc' to quit...", style="yellow")
 
     def display_issues(self):
         """Interactively displays a list of review issues in the console."""
@@ -65,18 +79,39 @@ class IssueDisplay:
             self.console.print("No issues to display.", style="yellow")
             return
 
+        self.console.print(f"Found {len(self.issues)} issues. Starting review...", style="bold green")
         self.current_issue_index = 0
 
         while True:
             self.update_display()
             # --- Handle User Input ---
             try:
-                user_input = input()
-                if user_input.lower() == 'q':
-                    break
-                elif user_input.lower() == 'p':
-                    self.current_issue_index = (self.current_issue_index - 1) % len(self.issues)
-                else:
+                user_input = getch()
+
+                if user_input == '\x1b':  # ESC or arrow key
+                    # Try to read the next two characters for arrow keys
+                    # This is a common pattern for arrow keys in terminals
+                    next_char_1 = getch()
+                    if next_char_1 == '[':
+                        next_char_2 = getch()
+                        if next_char_2 == 'A':  # Up arrow
+                            self.current_issue_index = (self.current_issue_index - 1) % len(self.issues)
+                        elif next_char_2 == 'B':  # Down arrow
+                            self.current_issue_index = (self.current_issue_index + 1) % len(self.issues)
+                        else:
+                            # Unknown escape sequence, treat as ESC (quit)
+                            break
+                    else:
+                        # Just ESC
+                        break
+                elif user_input.lower() == 'j':
                     self.current_issue_index = (self.current_issue_index + 1) % len(self.issues)
+                elif user_input.lower() == 'k':
+                    self.current_issue_index = (self.current_issue_index - 1) % len(self.issues)
+                elif user_input == '\x03': # Ctrl+C
+                    break
+                else:
+                    # Ignore other keys
+                    pass
             except (KeyboardInterrupt, EOFError):
                 break
