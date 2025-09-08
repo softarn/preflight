@@ -7,7 +7,7 @@ from rich.console import Console
 
 from preflight.ai_reviewer import get_model, analyze_diff, ReviewIssue
 from preflight.display_utils import get_color
-from preflight.git_utils import get_git_diff
+from preflight.git_utils import get_git_diff, get_current_branch
 from preflight.issue_display import IssueDisplay  # New import
 
 app = typer.Typer()
@@ -16,12 +16,16 @@ issue_display = IssueDisplay(console) # New: Instantiate IssueDisplay
 
 
 @app.command()
-def review(branch: str = typer.Argument(..., help="The git branch to analyze against master.")):
+def review(branch: str = typer.Argument(None, help="The git branch to analyze. Defaults to the current branch if not provided."),
+           base_branch: str = typer.Option("master", "--base", "-b", help="The base branch to compare against.")):
     """Analyzes the files in a git branch for potential issues using a local AI model."""
     try:
-        # 1. Get Git Diff
+        if branch is None:
+            branch = get_current_branch()
+
         console.print(f":mag: Analyzing diff for branch '{branch}' against master...", style="yellow")
-        diff_content = get_git_diff(branch)
+
+        diff_content = get_git_diff(branch, base_branch)
         if not diff_content.strip():
             console.print("No differences found. Nothing to review.", style="green")
             return
