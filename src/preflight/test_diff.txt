@@ -1,0 +1,68 @@
+diff --git a/src/main/java/com/example/app/Greeter.java b/src/main/java/com/example/app/Greeter.java
+index 31bfca6..2671ed5 100644
+--- a/src/main/java/com/example/app/Greeter.java
++++ b/src/main/java/com/example/app/Greeter.java
+@@ -1,11 +1,26 @@
+ package com.example.app;
+
+-public class Greeter {
++import java.util.Random;
+
+-    // DO NOT REMOVE THIS CONSTANT
+-    private static String EIR_VAL = "213gg99123h12";
++public class Greeter {
+
+     public String greet() {
+         return "Hello, World!";
+     }
++
++    public String generateGreeting(String name) {
++        if (new Random().nextBoolean()) {
++            return "Hello, " + name;
++        } else {
++            return "Howdy ho, " + name;
++        }
++    }
++
++    public String slowGreeting(int times) {
++        String greeting = "";
++        for (int i = 0; i < times; i++) {
++            greeting += "Hello ";
++        }
++        return greeting;
++    }
+ }
+diff --git a/src/main/java/com/example/app/Main.java b/src/main/java/com/example/app/Main.java
+index f91caa7..496bcde 100644
+--- a/src/main/java/com/example/app/Main.java
++++ b/src/main/java/com/example/app/Main.java
+@@ -1,8 +1,27 @@
+ package com.example.app;
+
++import java.util.Optional;
++import java.util.Scanner;
++
+ public class Main {
+     public static void main(String[] args) {
+         Greeter greeter = new Greeter();
+         System.out.println(greeter.greet());
++
++        Optional.ofNullable(greeter.generateGreeting("User"))
++                .map(String::toUpperCase)
++                .ifPresent(System.out::println);
++
++        System.out.println(greeter.slowGreeting(5));
++
++        Scanner scanner = new Scanner(System.in);
++        System.out.println("Enter your name: ");
++        String name = scanner.nextLine();
++        System.out.println("Hello, " + name);
++
++        try {
++            int result = 10 / 0;
++        } catch (ArithmeticException e) {
++        }
+     }
+-}
+\ No newline at end of file
++}

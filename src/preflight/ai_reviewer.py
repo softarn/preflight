@@ -1,15 +1,13 @@
-import json
-import re
 import sys
 import urllib.request
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
-from typing import List, Iterator, Union
+from typing import Iterator, Union, Optional
 
-from llama_cpp import Llama
-from llama_cpp.llama_types import CreateCompletionResponse, CreateCompletionResponse
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, DownloadColumn, TransferSpeedColumn
+from llama_cpp import Llama, LlamaTokenizer
+from llama_cpp.llama_types import CreateCompletionResponse
+from rich.progress import Progress, BarColumn, TextColumn, DownloadColumn, TransferSpeedColumn
 
 # --- Model and Prompt Configuration ---
 # MODEL_REPO = "bartowski/deepseek-ai_DeepSeek-R1-0528-Qwen3-8B-GGUF"
@@ -22,11 +20,12 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, Downlo
 # MODEL_FILE = "Qwen3-4B-Thinking-2507-Q2_K.gguf"
 
 # Fast, small and good it seems
-# MODEL_REPO = "unsloth/Qwen3-4B-Instruct-2507-GGUF"
-# MODEL_FILE = "Qwen3-4B-Instruct-2507-Q3_K_M.gguf"
+MODEL_REPO = "unsloth/Qwen3-4B-Instruct-2507-GGUF"
+MODEL_FILE = "Qwen3-4B-Instruct-2507-Q3_K_M.gguf"
 
-MODEL_REPO = "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF"
-MODEL_FILE = "Qwen3-30B-A3B-Instruct-2507-Q3_K_M.gguf"
+# Large and good, not sure how much better results
+# MODEL_REPO = "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF"
+# MODEL_FILE = "Qwen3-30B-A3B-Instruct-2507-Q3_K_M.gguf"
 
 # Did not find as many problems as others
 # MODEL_REPO = "unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF"
@@ -43,11 +42,13 @@ except (FileNotFoundError, ModuleNotFoundError):
     print("FATAL: Could not find system_prompt.txt within the preflight package.", file=sys.stderr)
     sys.exit(1)
 
+
 # --- Data Classes for Type-Safe JSON Parsing ---
 @dataclass
 class LineRange:
     start: int
     end: int
+
 
 @dataclass
 class ReviewIssue:
@@ -56,12 +57,13 @@ class ReviewIssue:
     severity: str
     description: str
     suggestion: str
-    codeSnippet: str
+    codeSnippet: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict) -> 'ReviewIssue':
         data["line"] = LineRange(**data["line"])
         return cls(**data)
+
 
 # --- Model Management ---
 def _download_model():
@@ -73,13 +75,13 @@ def _download_model():
         with urllib.request.urlopen(MODEL_DOWNLOAD_URL) as response:
             total_size = int(response.headers.get('content-length', 0))
             with Progress(
-                TextColumn("[bold blue]{task.fields[filename]}", justify="right"),
-                BarColumn(bar_width=None),
-                "[progress.percentage]{task.percentage:>3.1f}%",
-                "•",
-                DownloadColumn(),
-                "•",
-                TransferSpeedColumn(),
+                    TextColumn("[bold blue]{task.fields[filename]}", justify="right"),
+                    BarColumn(bar_width=None),
+                    "[progress.percentage]{task.percentage:>3.1f}%",
+                    "•",
+                    DownloadColumn(),
+                    "•",
+                    TransferSpeedColumn(),
             ) as progress:
                 task = progress.add_task("Downloading", total=total_size, filename=MODEL_FILE)
                 with open(MODEL_PATH, 'wb') as f:
@@ -90,35 +92,37 @@ def _download_model():
     except Exception as e:
         print(f"Failed to download model: {e}", file=sys.stderr)
         if MODEL_PATH.exists():
-            MODEL_PATH.unlink() # Clean up partial download
+            MODEL_PATH.unlink()  # Clean up partial download
         raise
 
-def get_model() -> Llama:
+
+def calculate_tokens(content: str) -> int:
+    llama = Llama(model_path=str(MODEL_PATH), n_ctx=1, n_gpu_layers=-1, verbose=False)
+    input_tokens = LlamaTokenizer(llama).tokenize(content.encode('utf-8'))
+    buffer_for_output = 4096
+    return len(input_tokens) + buffer_for_output
+
+
+def get_model(content: str) -> Llama:
+    num_of_tokens = calculate_tokens(content)
+    print(f"Calculated tokens to: {num_of_tokens}")
     """Ensures the model is available and returns a Llama instance."""
     if not MODEL_PATH.exists():
         _download_model()
 
-    return Llama(model_path=str(MODEL_PATH), n_ctx=32768, n_gpu_layers=-1, n_batch=2048, verbose=False)
+    return Llama(model_path=str(MODEL_PATH), n_ctx=num_of_tokens, n_gpu_layers=-1, verbose=False)
+
 
 # --- AI Analysis ---
-def analyze_diff(diff_content: str, model: Llama) -> Union[CreateCompletionResponse, Iterator[CreateCompletionResponse]]:
+def analyze_diff(diff_content: str) -> Union[
+    CreateCompletionResponse, Iterator[CreateCompletionResponse]]:
     """Analyzes a git diff using the AI model and streams the response.
 
     Returns:
         A generator that yields response chunks.
     """
-    user_prompt = f"""Analyze the following git diff:
-
-<diff>
-{diff_content}
-</diff>"""
-    prompt = (
-        f"<|im_start|>system\n"
-        f"{SYSTEM_PROMPT}<|im_end|>\n"
-        f"<|im_start|>user\n"
-        f"{user_prompt}<|im_end|>\n"
-        f"<|im_start|>assistant"
-    )
+    prompt = get_prompt(diff_content)
+    model = get_model(prompt)
 
     return model(
         prompt,
@@ -131,3 +135,17 @@ def analyze_diff(diff_content: str, model: Llama) -> Union[CreateCompletionRespo
         stream=True,
     )
 
+
+def get_prompt(diff_content: str) -> str:
+    user_prompt = f"""Analyze the following git diff:
+    <diff>
+{diff_content}
+</diff>"""
+    prompt = (
+        f"<|im_start|>system\n"
+        f"{SYSTEM_PROMPT}<|im_end|>\n"
+        f"<|im_start|>user\n"
+        f"{user_prompt}<|im_end|>\n"
+        f"<|im_start|>assistant"
+    )
+    return prompt
