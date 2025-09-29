@@ -20,19 +20,24 @@ from rich.progress import Progress, BarColumn, TextColumn, DownloadColumn, Trans
 # MODEL_FILE = "Qwen3-4B-Thinking-2507-Q2_K.gguf"
 
 # Fast, small and good it seems
-MODEL_REPO = "unsloth/Qwen3-4B-Instruct-2507-GGUF"
-MODEL_FILE = "Qwen3-4B-Instruct-2507-Q3_K_M.gguf"
-MODEL_MAX_TOKENS = 262144
+# MODEL_REPO = "unsloth/Qwen3-4B-Instruct-2507-GGUF"
+# MODEL_FILE = "Qwen3-4B-Instruct-2507-Q3_K_M.gguf"
 
-# Large and good, not sure how much better results
-# MODEL_REPO = "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF"
-# MODEL_FILE = "Qwen3-30B-A3B-Instruct-2507-Q3_K_M.gguf"
+# Large and good, better than the smaller one
+MODEL_REPO = "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF"
+MODEL_FILE = "Qwen3-30B-A3B-Instruct-2507-Q3_K_M.gguf"
+
+# Untested but interesting, needs some fixes first to run properly
+# MODEL_REPO = "unsloth/gpt-oss-20b-GGUF"
+# MODEL_FILE = "gpt-oss-20b-Q3_K_M.gguf"
+
 
 # Did not find as many problems as others
 # MODEL_REPO = "unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF"
 # MODEL_FILE = "Qwen3-Coder-30B-A3B-Instruct-Q3_K_M.gguf"
 MODEL_DOWNLOAD_URL = f"https://huggingface.co/{MODEL_REPO}/resolve/main/{MODEL_FILE}"
 
+MODEL_MAX_TOKENS = 262144
 MODELS_DIR = Path.home() / ".preflight" / "models"
 MODEL_PATH = MODELS_DIR / MODEL_FILE
 
@@ -106,15 +111,16 @@ def calculate_tokens(content: str) -> int:
 
 
 def get_model(content: str) -> Llama:
+    """Ensures the model is available and returns a Llama instance."""
+    if not MODEL_PATH.exists():
+        _download_model()
+
     num_of_tokens = calculate_tokens(content)
     print(f"Calculated tokens to: {num_of_tokens}")
 
     if num_of_tokens > MODEL_MAX_TOKENS:
         raise AiModelError(f"Input too large for model context window of {MODEL_MAX_TOKENS} tokens.")
 
-    """Ensures the model is available and returns a Llama instance."""
-    if not MODEL_PATH.exists():
-        _download_model()
 
     return Llama(model_path=str(MODEL_PATH), n_ctx=num_of_tokens, n_gpu_layers=-1, verbose=False)
 

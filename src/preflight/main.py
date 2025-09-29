@@ -10,7 +10,7 @@ from rich.console import Console
 from preflight.ai_reviewer import analyze_diff, ReviewIssue, AiModelError
 from preflight.display_utils import get_color
 from preflight.git_utils import get_git_diff, get_current_branch, get_current_git_diff
-from preflight.issue_display import IssueDisplay  # New import
+from preflight.issue_display import IssueDisplay
 
 app = typer.Typer()
 console = Console()
@@ -34,7 +34,7 @@ def review(
             help="Review the current Git diff (unstaged and staged changes)."
         ),
         test: bool = typer.Option(
-            False,
+            True,
             "--test", help="Uses a test diff to review"
         )
 ):
