@@ -34,7 +34,7 @@ def review(
             help="Review the current Git diff (unstaged and staged changes)."
         ),
         test: bool = typer.Option(
-            True,
+            False,
             "--test", help="Uses a test diff to review"
         )
 ):
