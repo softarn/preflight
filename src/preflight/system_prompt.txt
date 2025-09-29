@@ -107,6 +107,9 @@ Example Output:
 Note:
 BE THOROUGH IN YOUR ANALYSIS THINK CAREFUL ABOUT EVERY LINE, CHECK BOTH ADDED AND REMOVED LINES
 
-When you are done, go through it once more, and when you are done with done with that, go through it a third time, and then again
+When you are done, go through it once more,
+and when you are done with that,
+go through it a third time,
+and then again
 and again
 and again
