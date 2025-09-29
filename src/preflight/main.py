@@ -7,7 +7,7 @@ import typer
 from llama_cpp import CreateCompletionResponse
 from rich.console import Console
 
-from preflight.ai_reviewer import analyze_diff, ReviewIssue
+from preflight.ai_reviewer import analyze_diff, ReviewIssue, AiModelError
 from preflight.display_utils import get_color
 from preflight.git_utils import get_git_diff, get_current_branch, get_current_git_diff
 from preflight.issue_display import IssueDisplay  # New import
@@ -50,7 +50,11 @@ def review(
         console.print(":robot: Loading AI model... (this may take a moment)", style="yellow")
 
         # 3. Run Analysis and Stream Output
-        result = analyze_diff(diff_content)
+        try:
+            result = analyze_diff(diff_content)
+        except AiModelError as e:
+            console.print(f":x: Critical Error: {e}", style="bold red")
+            return
 
         console.clear()
 

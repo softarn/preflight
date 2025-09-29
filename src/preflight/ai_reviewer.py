@@ -22,6 +22,7 @@ from rich.progress import Progress, BarColumn, TextColumn, DownloadColumn, Trans
 # Fast, small and good it seems
 MODEL_REPO = "unsloth/Qwen3-4B-Instruct-2507-GGUF"
 MODEL_FILE = "Qwen3-4B-Instruct-2507-Q3_K_M.gguf"
+MODEL_MAX_TOKENS = 262144
 
 # Large and good, not sure how much better results
 # MODEL_REPO = "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF"
@@ -97,6 +98,7 @@ def _download_model():
 
 
 def calculate_tokens(content: str) -> int:
+    # This way of counting tokens can probably be optimized a lot so we don't have to load the model
     llama = Llama(model_path=str(MODEL_PATH), n_ctx=1, n_gpu_layers=-1, verbose=False)
     input_tokens = LlamaTokenizer(llama).tokenize(content.encode('utf-8'))
     buffer_for_output = 4096
@@ -106,6 +108,10 @@ def calculate_tokens(content: str) -> int:
 def get_model(content: str) -> Llama:
     num_of_tokens = calculate_tokens(content)
     print(f"Calculated tokens to: {num_of_tokens}")
+
+    if num_of_tokens > MODEL_MAX_TOKENS:
+        raise AiModelError(f"Input too large for model context window of {MODEL_MAX_TOKENS} tokens.")
+
     """Ensures the model is available and returns a Llama instance."""
     if not MODEL_PATH.exists():
         _download_model()
@@ -149,3 +155,6 @@ def get_prompt(diff_content: str) -> str:
         f"<|im_start|>assistant"
     )
     return prompt
+
+class AiModelError(Exception):
+    pass
