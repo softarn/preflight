@@ -9,38 +9,35 @@ from rich.console import Console
 
 from preflight.ai_reviewer import analyze_diff, ReviewIssue, AiModelError
 from preflight.display_utils import get_color
-from preflight.git_utils import get_git_diff, get_current_branch, get_current_git_diff
+from preflight.git_utils import get_git_diff, get_current_branch, get_current_git_diff, get_last_commit_changes
 from preflight.issue_display import IssueDisplay
 
 app = typer.Typer()
 console = Console()
 issue_display = IssueDisplay(console)
 
-
-@app.command()
+@app.callback(invoke_without_command=True)
 def review(
-        branch: str = typer.Argument(
-            get_current_branch(),
-            help="The git branch to analyze. Defaults to the current branch if not provided. Not used if --diff is specified."
-        ),
-        base_branch: str = typer.Option(
-            "master",
-            "--base", "-b",
-            help="The base branch to compare against. Not used if --diff is specified."
-        ),
-        diff: bool = typer.Option(
-            False,
-            "--diff",
-            help="Review the current Git diff (unstaged and staged changes)."
-        ),
-        test: bool = typer.Option(
-            True,
-            "--test", help="Uses a test diff to review"
-        )
+    ctx: typer.Context,
+    action: str = typer.Argument(
+        "commit",
+        help="Subcommand to run: commit, diff or branch"
+    ),
+    base_branch: str = typer.Option(
+        "master",
+        "--base", "-b",
+        help="The base branch to compare against. Not used if --diff is specified."
+    ),
+    test: bool = typer.Option(
+        True,
+        "--test",
+        help="Uses a test diff to review"
+    )
 ):
     """Analyzes the files in a git branch for potential issues using a local AI model."""
     try:
-        diff_content = get_text_to_review(base_branch, branch, diff, test)
+
+        diff_content = get_text_to_review(base_branch, action, test)
 
         if not diff_content.strip():
             console.print("No differences found. Nothing to review.", style="green")
@@ -104,20 +101,22 @@ def review(
         raise typer.Exit(code=1)
 
 
-def get_text_to_review(base_branch: str, branch: str, diff: bool, test: bool) -> str:
+def get_text_to_review(base_branch: str, action: str, test: bool) -> str:
     if test:
         return resources.files('preflight').joinpath('test_diff.txt').read_text(encoding='utf-8')
 
-    if diff:
-        if branch is not None or base_branch != "master":
-            console.print(":x: Cannot use --diff with branch arguments (--branch or --base).", style="bold red")
-            raise typer.Exit(code=1)
-        console.print(":mag: Analyzing current Git diff...", style="yellow")
-        diff_content = get_current_git_diff()
-    else:
-        console.print(f":mag: Analyzing diff for current branch '{branch}' against {base_branch}...",
-                      style="yellow")
-        diff_content = get_git_diff(branch, base_branch)
+    if action == 'commit':
+        return get_last_commit_changes()
+
+    raise NotImplemented("Only commits reviews are implemented")
+
+    # if type == 'diff':
+    #     console.print(":mag: Analyzing current Git diff...", style="yellow")
+    #     diff_content = get_current_git_diff()
+    # else:
+    #     console.print(f":mag: Analyzing diff for current branch '{branch}' against {base_branch}...",
+    #                   style="yellow")
+    #     diff_content = get_git_diff(branch, base_branch)
     return diff_content
 
 

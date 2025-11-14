@@ -49,7 +49,6 @@ except (FileNotFoundError, ModuleNotFoundError):
     sys.exit(1)
 
 
-# --- Data Classes for Type-Safe JSON Parsing ---
 @dataclass
 class LineRange:
     start: int
@@ -121,11 +120,9 @@ def get_model(content: str) -> Llama:
     if num_of_tokens > MODEL_MAX_TOKENS:
         raise AiModelError(f"Input too large for model context window of {MODEL_MAX_TOKENS} tokens.")
 
-
     return Llama(model_path=str(MODEL_PATH), n_ctx=num_of_tokens, n_gpu_layers=-1, verbose=False)
 
 
-# --- AI Analysis ---
 def analyze_diff(diff_content: str) -> Union[
     CreateCompletionResponse, Iterator[CreateCompletionResponse]]:
     """Analyzes a git diff using the AI model and streams the response.
@@ -161,6 +158,7 @@ def get_prompt(diff_content: str) -> str:
         f"<|im_start|>assistant"
     )
     return prompt
+
 
 class AiModelError(Exception):
     pass
