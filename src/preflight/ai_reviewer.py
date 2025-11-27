@@ -123,13 +123,35 @@ def get_model(content: str) -> Llama:
     return Llama(model_path=str(MODEL_PATH), n_ctx=num_of_tokens, n_gpu_layers=-1, verbose=False)
 
 
-def analyze_diff(diff_content: str) -> Union[
+def analyze_diff(diff_content: str, mock: bool = False) -> Union[
     CreateCompletionResponse, Iterator[CreateCompletionResponse]]:
     """Analyzes a git diff using the AI model and streams the response.
 
     Returns:
         A generator that yields response chunks.
     """
+    if mock:
+        try:
+            mock_response = Path("test-response.txt").read_text(encoding="utf-8")
+            # Return a single chunk simulating the full response
+            yield {
+                "id": "mock-id",
+                "object": "text_completion",
+                "created": 1234567890,
+                "model": "mock-model",
+                "choices": [
+                    {
+                        "text": mock_response,
+                        "index": 0,
+                        "logprobs": None,
+                        "finish_reason": "stop"
+                    }
+                ]
+            }
+            return
+        except FileNotFoundError:
+            raise AiModelError("test-response.txt not found for mock mode.")
+
     prompt = get_prompt(diff_content)
     model = get_model(prompt)
 

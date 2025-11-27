@@ -32,6 +32,11 @@ def review(
         True,
         "--test",
         help="Uses a test diff to review"
+    ),
+    mock_ai: bool = typer.Option(
+        False,
+        "--mock-ai",
+        help="Mocks the AI response using test-response.txt"
     )
 ):
     """Analyzes the files in a git branch for potential issues using a local AI model."""
@@ -48,7 +53,7 @@ def review(
 
         # 3. Run Analysis and Stream Output
         try:
-            result = analyze_diff(diff_content)
+            result = analyze_diff(diff_content, mock=mock_ai)
         except AiModelError as e:
             console.print(f":x: Critical Error: {e}", style="bold red")
             return
