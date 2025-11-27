@@ -1,0 +1,69 @@
+
+[
+  {
+    "file": "src/main/java/com/example/app/Greeter.java",
+    "line": {
+      "start": 16,
+      "end": 16
+    },
+    "severity": "MEDIUM",
+    "description": "The generateGreeting method uses a new Random instance on each call, which is inefficient and potentially problematic due to the overhead of object creation and seeding. This may lead to poor performance if called frequently.",
+    "suggestion": "Reuse a single instance of Random as a static field in the Greeter class to avoid repeated instantiation and improve performance.",
+    "codeSnippet": "public String generateGreeting(String name) {\n        if (new Random().nextBoolean()) {\n            return \"Hello, \" + name;\n        } else {\n            return \"Howdy ho, \" + name;\n        }\n    }"
+  },
+  {
+    "file": "src/main/java/com/example/app/Greeter.java",
+    "line": {
+      "start": 23,
+      "end": 27
+    },
+    "severity": "HIGH",
+    "description": "The slowGreeting method uses string concatenation in a loop with the '+' operator, which creates a new String object on each iteration. This leads to O(n²) time complexity and poor performance for large values of 'times'.",
+    "suggestion": "Replace the loop with StringBuilder to achieve O(n) performance. Use StringBuilder.append() inside the loop and convert to String only once at the end.",
+    "codeSnippet": "public String slowGreeting(int times) {\n        String greeting = \"\";\n        for (int i = 0; i < times; i++) {\n            greeting += \"Hello \";\n        }\n        return greeting;\n    }"
+  },
+  {
+    "file": "src/main/java/com/example/app/Main.java",
+    "line": {
+      "start": 19,
+      "end": 20
+    },
+    "severity": "MEDIUM",
+    "description": "The use of Optional.ofNullable().map().ifPresent() on a method that is guaranteed to return a non-null value (generateGreeting) is unnecessary and adds overhead. This pattern should only be used when the result may be null.",
+    "suggestion": "Remove the Optional wrapper since generateGreeting always returns a non-null string. Call the method directly: System.out.println(greeter.generateGreeting(\"User\"));",
+    "codeSnippet": "Optional.ofNullable(greeter.generateGreeting(\"User\"))\n                .map(String::toUpperCase)\n                .ifPresent(System.out::println);"
+  },
+  {
+    "file": "src/main/java/com/example/app/Main.java",
+    "line": {
+      "start": 27,
+      "end": 31
+    },
+    "severity": "HIGH",
+    "description": "The code attempts to read input from a Scanner without closing it, which can lead to resource leaks. The Scanner is never closed, and since it wraps System.in, this may prevent proper resource cleanup.",
+    "suggestion": "Use try-with-resources to ensure the Scanner is properly closed after use, or explicitly call scanner.close() in a finally block.",
+    "codeSnippet": "Scanner scanner = new Scanner(System.in);\n        System.out.println(\"Enter your name: \");\n        String name = scanner.nextLine();\n        System.out.println(\"Hello, \" + name);"
+  },
+  {
+    "file": "src/main/java/com/example/app/Main.java",
+    "line": {
+      "start": 35,
+      "end": 40
+    },
+    "severity": "HIGH",
+    "description": "The arithmetic division by zero is caught in a catch block that does nothing (empty handler). This silently ignores a critical runtime error, which can mask bugs and lead to undefined behavior.",
+    "suggestion": "Either handle the exception appropriately (e.g., log it or throw a meaningful error) or remove the code if it's meant for testing. Never catch ArithmeticException without action.",
+    "codeSnippet": "try {\n            int result = 10 / 0;\n        } catch (ArithmeticException e) {\n        }"
+  },
+  {
+    "file": "src/main/java/com/example/app/Greeter.java",
+    "line": {
+      "start": 4,
+      "end": 4
+    },
+    "severity": "CRITICAL",
+    "description": "The 'EIR_VAL' constant was removed from the class but is marked as 'DO NOT REMOVE'. Its removal may break dependent code or violate a critical contract, potentially causing system instability or data corruption.",
+    "suggestion": "Restore the EIR_VAL constant with its original value and ensure that it is not removed in future changes. If it's no longer needed, document why it was removed and confirm with stakeholders.",
+    "codeSnippet": "// DO NOT REMOVE THIS CONSTANT\n    private static String EIR_VAL = \"213gg99123h12\";"
+  }
+]
