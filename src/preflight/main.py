@@ -9,8 +9,9 @@ from rich.console import Console
 
 from preflight.ai_reviewer import analyze_diff, ReviewIssue, AiModelError
 from preflight.display_utils import get_color
-from preflight.git_utils import get_git_diff, get_current_branch, get_current_git_diff, get_last_commit_changes
+from preflight.git_utils import get_git_diff, get_current_branch, get_current_git_diff, get_last_commit_changes, get_current_commit_hash
 from preflight.issue_display import IssueDisplay
+from preflight.database import Database
 
 app = typer.Typer()
 console = Console()
@@ -42,7 +43,7 @@ def review(
     """Analyzes the files in a git branch for potential issues using a local AI model."""
     try:
 
-        diff_content = get_text_to_review(base_branch, action, test)
+        diff_content, commit_hash = get_text_to_review(base_branch, action, test)
 
         if not diff_content.strip():
             console.print("No differences found. Nothing to review.", style="green")
@@ -77,9 +78,20 @@ def review(
             json_text = full_response[start_index: end_index + 1]
             try:
                 issues_data = json.loads(json_text)
-                # New: Add issues one by one to IssueDisplay
+                
+                # Initialize Database
+                db = Database()
+                saved_count = 0
+                
+                # Save issues to database
                 for item in issues_data:
-                    issue_display.add_issue(ReviewIssue.from_dict(item))
+                    issue = ReviewIssue.from_dict(item)
+                    db.save_issue(issue, commit_hash)
+                    saved_count += 1
+                
+                db.close()
+                console.print(f"✨ Analysis complete. Saved {saved_count} issues to database.", style="bold green")
+                
             except json.JSONDecodeError as e:
                 console.print(f":x: Failed to parse JSON from AI response: {e}", style="bold red")
                 console.print(f"--- Extracted Text ---\n{json_text}", style="dim")
@@ -87,15 +99,6 @@ def review(
         else:
             console.print(":warning: Could not find a JSON array in the model's output.", style="yellow")
             console.print(f"--- Raw Response ---\n{full_response}", style="dim")
-            # If no issues found, ensure issue_display is empty
-            issue_display.issues = []
-
-        # 5. Display Results
-        if not issue_display.issues:  # Check issue_display for issues
-            console.print("✨ Analysis complete. No issues found!", style="bold green")
-            return
-
-        issue_display.display_issues()  # New: Use IssueDisplay to display issues
 
     except FileNotFoundError:
         console.print(":x: Critical Error: 'git' command not found. Is Git installed?", style="bold red")
@@ -106,12 +109,12 @@ def review(
         raise typer.Exit(code=1)
 
 
-def get_text_to_review(base_branch: str, action: str, test: bool) -> str:
+def get_text_to_review(base_branch: str, action: str, test: bool) -> tuple[str, str]:
     if test:
-        return resources.files('preflight').joinpath('test_diff.txt').read_text(encoding='utf-8')
+        return resources.files('preflight').joinpath('test_diff.txt').read_text(encoding='utf-8'), "TEST_COMMIT_HASH"
 
     if action == 'commit':
-        return get_last_commit_changes()
+        return get_last_commit_changes(), get_current_commit_hash()
 
     raise NotImplemented("Only commits reviews are implemented")
 
@@ -122,7 +125,7 @@ def get_text_to_review(base_branch: str, action: str, test: bool) -> str:
     #     console.print(f":mag: Analyzing diff for current branch '{branch}' against {base_branch}...",
     #                   style="yellow")
     #     diff_content = get_git_diff(branch, base_branch)
-    return diff_content
+    # return diff_content
 
 
 def process_model_output(result: CreateCompletionResponse | Iterator[CreateCompletionResponse],
