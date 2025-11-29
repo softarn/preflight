@@ -25,6 +25,7 @@ class Database:
                 suggestion TEXT,
                 code_snippet TEXT,
                 commit_hash TEXT,
+                branch TEXT,
                 created_at TIMESTAMP
             )
         """)
@@ -34,15 +35,18 @@ class Database:
         columns = [info[1] for info in cursor.fetchall()]
         if "commit_hash" not in columns:
             cursor.execute("ALTER TABLE issues ADD COLUMN commit_hash TEXT")
+        
+        if "branch" not in columns:
+            cursor.execute("ALTER TABLE issues ADD COLUMN branch TEXT")
             
         self.conn.commit()
 
-    def save_issue(self, issue: ReviewIssue, commit_hash: str):
+    def save_issue(self, issue: ReviewIssue, commit_hash: str, branch: str):
         cursor = self.conn.cursor()
         cursor.execute("""
             INSERT INTO issues (
-                file, start_line, end_line, severity, description, suggestion, code_snippet, commit_hash, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                file, start_line, end_line, severity, description, suggestion, code_snippet, commit_hash, branch, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             issue.file,
             issue.line.start,
@@ -52,6 +56,7 @@ class Database:
             issue.suggestion,
             issue.codeSnippet,
             commit_hash,
+            branch,
             datetime.now()
         ))
         self.conn.commit()

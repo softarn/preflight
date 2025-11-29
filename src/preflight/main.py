@@ -46,7 +46,7 @@ def review(
     """Analyzes the files in a git branch for potential issues using a local AI model."""
     try:
 
-        diff_content, commit_hash = get_text_to_review(base_branch, action, test)
+        diff_content, commit_hash, branch = get_text_to_review(base_branch, action, test)
 
         if not diff_content.strip():
             console.print("No differences found. Nothing to review.", style="green")
@@ -89,7 +89,7 @@ def review(
                 # Save issues to database
                 for item in issues_data:
                     issue = ReviewIssue.from_dict(item)
-                    db.save_issue(issue, commit_hash)
+                    db.save_issue(issue, commit_hash, branch)
                     saved_count += 1
                 
                 db.close()
@@ -121,12 +121,12 @@ def review(
         raise typer.Exit(code=1)
 
 
-def get_text_to_review(base_branch: str, action: str, test: bool) -> tuple[str, str]:
+def get_text_to_review(base_branch: str, action: str, test: bool) -> tuple[str, str, str]:
     if test:
-        return resources.files('preflight').joinpath('test_diff.txt').read_text(encoding='utf-8'), "TEST_COMMIT_HASH"
+        return resources.files('preflight').joinpath('test_diff.txt').read_text(encoding='utf-8'), "TEST_COMMIT_HASH", "TEST_BRANCH"
 
     if action == 'commit':
-        return get_last_commit_changes(), get_current_commit_hash()
+        return get_last_commit_changes(), get_current_commit_hash(), get_current_branch()
 
     raise NotImplemented("Only commits reviews are implemented")
 
