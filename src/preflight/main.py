@@ -1,6 +1,7 @@
 import json
 from importlib import resources
 from typing import Iterator
+from pathlib import Path
 
 import rich.status
 import typer
@@ -12,6 +13,8 @@ from preflight.display_utils import get_color
 from preflight.git_utils import get_git_diff, get_current_branch, get_current_git_diff, get_last_commit_changes, get_current_commit_hash
 from preflight.issue_display import IssueDisplay
 from preflight.database import Database
+from preflight.notification import send_notification
+from preflight.report_generator import generate_mock_report
 
 app = typer.Typer()
 console = Console()
@@ -91,6 +94,15 @@ def review(
                 
                 db.close()
                 console.print(f"✨ Analysis complete. Saved {saved_count} issues to database.", style="bold green")
+                
+                # Generate report and notify
+                report_path = Path.home() / ".preflight" / "report.html"
+                generate_mock_report(report_path)
+                
+                if saved_count > 0:
+                    send_notification(f"Found {saved_count} issues in review", f"file://{report_path}")
+                else:
+                    send_notification("No issues found in review", f"file://{report_path}")
                 
             except json.JSONDecodeError as e:
                 console.print(f":x: Failed to parse JSON from AI response: {e}", style="bold red")
