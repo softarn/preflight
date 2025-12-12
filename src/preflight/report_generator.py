@@ -118,11 +118,9 @@ def generate_mock_report(path: Path, issues: list[ReviewIssue], commit_hash: str
                 margin-bottom: 24px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.05);
                 overflow: hidden;
-                transition: transform 0.2s ease;
             }}
             
             .issue:hover {{
-                transform: translateY(-2px);
                 box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             }}
             
