@@ -104,8 +104,9 @@ def review(
                 console.print(f"✨ Analysis complete. Saved {len(review_issues)} issues to database.", style="bold green")
                 
                 # Generate report and notify
-                report_path = Path.home() / ".preflight" / project_name / f"{commit_hash}.html"
-                generate_mock_report(report_path, review_issues, commit_hash, branch, project_name)
+                reports_root = Path.home() / ".preflight" / "reports"
+                report_path = reports_root / project_name / branch / f"{commit_hash}.html"
+                generate_mock_report(report_path, review_issues, commit_hash, branch, project_name, reports_root=reports_root)
                 
                 if len(review_issues) > 0:
                     send_notification(f"Found {len(review_issues)} issues in review", f"file://{report_path}")

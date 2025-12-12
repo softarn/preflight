@@ -3,10 +3,26 @@ from pathlib import Path
 from preflight.ai_reviewer import ReviewIssue
 
 
-def generate_mock_report(path: Path, issues: list[ReviewIssue], commit_hash: str, branch: str, project: str):
+import os
+
+def generate_mock_report(path: Path, issues: list[ReviewIssue], commit_hash: str, branch: str, project: str, reports_root: Path = None):
     """Generates a mock HTML report at the specified path."""
     path.parent.mkdir(parents=True, exist_ok=True)
     
+    if reports_root is None:
+        # Fallback if not provided, though main.py should provide it
+        reports_root = path.parent
+        
+    _setup_report_assets(reports_root)
+    
+    # Calculate relative path for logo
+    # report is at 'path', logo is at 'reports_root/img/logo.png'
+    logo_abs_path = reports_root / "img" / "logo.png"
+    logo_html = ""
+    if logo_abs_path.exists():
+        rel_logo_path = os.path.relpath(logo_abs_path, path.parent)
+        logo_html = f'<img src="{rel_logo_path}" alt="Preflight Logo" class="logo">'
+
     issues_html = ""
     for issue in issues:
         severity_class = f"severity-{issue.severity}"
@@ -69,11 +85,21 @@ def generate_mock_report(path: Path, issues: list[ReviewIssue], commit_hash: str
             header {{
                 margin-bottom: 40px;
                 text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
+            }}
+            
+            .logo {{
+                height: 100px;
+                width: auto;
             }}
             
             h1 {{
-                margin: 0 0 10px 0;
+                margin: 0;
                 color: #2c3e50;
+                font-size: 2.5em;
             }}
             
             .metadata {{
@@ -182,7 +208,8 @@ def generate_mock_report(path: Path, issues: list[ReviewIssue], commit_hash: str
     <body>
         <div class="container">
             <header>
-                <h1>Preflight Review Report</h1>
+                {logo_html}
+                <h1>Review Report</h1>
                 <div class="metadata">
                     <span><strong>Project:</strong> {project}</span>
                     <span><strong>Branch:</strong> {branch}</span>
@@ -198,3 +225,22 @@ def generate_mock_report(path: Path, issues: list[ReviewIssue], commit_hash: str
     </html>
     """
     path.write_text(html_content, encoding="utf-8")
+
+def _setup_report_assets(reports_root: Path) -> None:
+    """
+    Sets up necessary assets for the report (like images) in the shared assets directory.
+    Currently handles copying the logo to reports_root/img/logo.png.
+    """
+    # Try to find logo in project root (dev mode) or package resources (prod mode logic could go here)
+    # For now, assuming dev structure: src/preflight/report_generator.py -> ... -> project_root/img/logo.png
+    project_root = Path(__file__).resolve().parent.parent.parent
+    logo_source = project_root / "img" / "logo.png"
+    
+    if logo_source.exists():
+        img_dir = reports_root / "img"
+        img_dir.mkdir(parents=True, exist_ok=True)
+        destination = img_dir / "logo.png"
+        
+        import shutil
+        if not destination.exists():
+            shutil.copy(logo_source, destination)

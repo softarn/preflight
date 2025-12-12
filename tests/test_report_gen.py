@@ -35,13 +35,20 @@ def test_report_generation():
         )
     ]
     
-    output_path = Path("test_report.html").absolute()
+    reports_root = Path("test_reports").absolute()
+    project = "preflight-test"
+    branch = "feature/test-report"
+    
+    # Structure: reports_root/project/branch/report.html
+    output_path = reports_root / project / branch / "test_report.html"
+    
     generate_mock_report(
         path=output_path,
         issues=issues,
         commit_hash="abc1234",
-        branch="feature/test-report",
-        project="preflight-test"
+        branch=branch,
+        project=project,
+        reports_root=reports_root
     )
     
     print(f"Report generated at: {output_path}")
@@ -51,6 +58,22 @@ def test_report_generation():
         assert "src/main.py" in content
         assert "severity-HIGH" in content
         assert "This is a critical security vulnerability" in content
+        
+        # Verify Logo
+        img_dir = reports_root / "img"
+        logo_dest = img_dir / "logo.png"
+        
+        if logo_dest.exists():
+            print("Verification successful: Logo copied to img/logo.png")
+            # Expected relative path from project/branch/report.html to img/logo.png:
+            # ../../img/logo.png
+            if '../../img/logo.png' in content:
+                print("Verification successful: HTML contains correct relative logo path.")
+            else:
+                 print(f"Verification WARNING: HTML might have incorrect image path. Content snippet: {content[:1000]}")
+        else:
+            print("Verification WARNING: Logo NOT copied. (This is expected if logo.png is missing in project root)")
+
         print("Verification successful: File created and contains expected content.")
     else:
         print("Verification failed: File not created.")
