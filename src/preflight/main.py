@@ -45,7 +45,6 @@ def review(
 ):
     """Analyzes the files in a git branch for potential issues using a local AI model."""
     try:
-
         diff_content, commit_hash, branch = get_text_to_review(base_branch, action, test)
 
         if not diff_content.strip():
@@ -84,8 +83,7 @@ def review(
                 
                 # Initialize Database
                 db = Database()
-                saved_count = 0
-                
+
                 # Get project name
                 if test:
                     project_name = "test-project"
@@ -95,24 +93,23 @@ def review(
                     except Exception:
                         project_name = "unknown-project"
 
+                review_issues = []
                 # Save issues to database
                 for item in issues_data:
                     issue = ReviewIssue.from_dict(item)
                     db.save_issue(issue, commit_hash, branch, project_name)
-                    saved_count += 1
-                
+                    review_issues.append(issue)
+
                 db.close()
-                console.print(f"✨ Analysis complete. Saved {saved_count} issues to database.", style="bold green")
+                console.print(f"✨ Analysis complete. Saved {len(review_issues)} issues to database.", style="bold green")
                 
                 # Generate report and notify
-                report_path = Path.home() / ".preflight" / "report.html"
-                generate_mock_report(report_path)
+                report_path = Path.home() / ".preflight" / project_name / f"{commit_hash}.html"
+                generate_mock_report(report_path, issues_data, commit_hash, branch, project_name)
                 
-                if saved_count > 0:
-                    send_notification(f"Found {saved_count} issues in review", f"file://{report_path}")
-                else:
-                    send_notification("No issues found in review", f"file://{report_path}")
-                
+                if len(review_issues) > 0:
+                    send_notification(f"Found {len(review_issues)} issues in review", f"file://{report_path}")
+
             except json.JSONDecodeError as e:
                 console.print(f":x: Failed to parse JSON from AI response: {e}", style="bold red")
                 console.print(f"--- Extracted Text ---\n{json_text}", style="dim")

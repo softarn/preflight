@@ -1,6 +1,9 @@
 from pathlib import Path
 
-def generate_mock_report(path: Path):
+from preflight.ai_reviewer import ReviewIssue
+
+
+def generate_mock_report(path: Path, data: list[ReviewIssue], commit_hash: str, branch: str, project: str):
     """Generates a mock HTML report at the specified path."""
     path.parent.mkdir(parents=True, exist_ok=True)
     html_content = """
