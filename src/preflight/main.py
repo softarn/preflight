@@ -105,7 +105,7 @@ def review(
                 
                 # Generate report and notify
                 report_path = Path.home() / ".preflight" / project_name / f"{commit_hash}.html"
-                generate_mock_report(report_path, issues_data, commit_hash, branch, project_name)
+                generate_mock_report(report_path, review_issues, commit_hash, branch, project_name)
                 
                 if len(review_issues) > 0:
                     send_notification(f"Found {len(review_issues)} issues in review", f"file://{report_path}")
