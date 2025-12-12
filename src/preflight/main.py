@@ -10,7 +10,7 @@ from rich.console import Console
 
 from preflight.ai_reviewer import analyze_diff, ReviewIssue, AiModelError
 from preflight.display_utils import get_color
-from preflight.git_utils import get_git_diff, get_current_branch, get_current_git_diff, get_last_commit_changes, get_current_commit_hash
+from preflight.git_utils import get_git_diff, get_current_branch, get_current_git_diff, get_last_commit_changes, get_current_commit_hash, get_repo_root
 from preflight.issue_display import IssueDisplay
 from preflight.database import Database
 from preflight.notification import send_notification
@@ -86,10 +86,19 @@ def review(
                 db = Database()
                 saved_count = 0
                 
+                # Get project name
+                if test:
+                    project_name = "test-project"
+                else:
+                    try:
+                        project_name = Path(get_repo_root()).name
+                    except Exception:
+                        project_name = "unknown-project"
+
                 # Save issues to database
                 for item in issues_data:
                     issue = ReviewIssue.from_dict(item)
-                    db.save_issue(issue, commit_hash, branch)
+                    db.save_issue(issue, commit_hash, branch, project_name)
                     saved_count += 1
                 
                 db.close()

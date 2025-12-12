@@ -26,11 +26,12 @@ class Database:
                 code_snippet TEXT,
                 commit_hash TEXT,
                 branch TEXT,
+                project TEXT,
                 created_at TIMESTAMP
             )
         """)
         
-        # Migration: Check if commit_hash column exists, add if missing
+        # Migration: Check if columns exist, add if missing
         cursor.execute("PRAGMA table_info(issues)")
         columns = [info[1] for info in cursor.fetchall()]
         if "commit_hash" not in columns:
@@ -38,15 +39,18 @@ class Database:
         
         if "branch" not in columns:
             cursor.execute("ALTER TABLE issues ADD COLUMN branch TEXT")
+
+        if "project" not in columns:
+            cursor.execute("ALTER TABLE issues ADD COLUMN project TEXT")
             
         self.conn.commit()
 
-    def save_issue(self, issue: ReviewIssue, commit_hash: str, branch: str):
+    def save_issue(self, issue: ReviewIssue, commit_hash: str, branch: str, project: str):
         cursor = self.conn.cursor()
         cursor.execute("""
             INSERT INTO issues (
-                file, start_line, end_line, severity, description, suggestion, code_snippet, commit_hash, branch, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                file, start_line, end_line, severity, description, suggestion, code_snippet, commit_hash, branch, project, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             issue.file,
             issue.line.start,
@@ -57,6 +61,7 @@ class Database:
             issue.codeSnippet,
             commit_hash,
             branch,
+            project,
             datetime.now()
         ))
         self.conn.commit()

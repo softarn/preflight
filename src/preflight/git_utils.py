@@ -35,6 +35,23 @@ def get_current_commit_hash() -> str:
         print(f"Error getting current commit hash: {e.stderr}", file=sys.stderr)
         raise
 
+def get_repo_root() -> str:
+    """Gets the absolute path to the root of the git repository."""
+    try:
+        process = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return process.stdout.strip()
+    except FileNotFoundError:
+        print("Error: 'git' command not found. Is Git installed and in your PATH?", file=sys.stderr)
+        raise
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting repo root: {e.stderr}", file=sys.stderr)
+        raise
+
 def get_current_git_diff() -> str:
     """Gets the current Git diff (unstaged and staged changes)."""
     try:
